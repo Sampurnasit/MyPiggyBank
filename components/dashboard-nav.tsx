@@ -1,13 +1,13 @@
 'use client'
 
-import { User } from '@supabase/supabase-js'
+import { User as SupabaseUser } from '@supabase/supabase-js'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { PiggyBank, LogOut, Home, TrendingUp, Zap, Lightbulb, User, Wallet } from 'lucide-react'
+import { PiggyBank, LogOut, Home, TrendingUp, Zap, Lightbulb, User as UserIcon, Wallet } from 'lucide-react'
 
-export default function DashboardNav({ user }: { user: User }) {
+export default function DashboardNav({ user }: { user: SupabaseUser }) {
   const router = useRouter()
   const supabase = createClient()
 
@@ -50,7 +50,7 @@ export default function DashboardNav({ user }: { user: User }) {
             Insights
           </Link>
           <Link href="/dashboard/profile" className="flex items-center gap-1 text-sm hover:text-foreground/80">
-            <User className="w-4 h-4" />
+            <UserIcon className="w-4 h-4" />
             Profile
           </Link>
         </div>

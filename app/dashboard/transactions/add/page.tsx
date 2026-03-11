@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Script from 'next/script'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,6 +10,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+
+declare global {
+  interface Window {
+    Razorpay: any
+  }
+}
 
 const CATEGORIES = [
   'Food & Dining',
@@ -37,6 +44,8 @@ export default function AddTransactionPage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [razorpayReady, setRazorpayReady] = useState(false)
+  const [userEmail, setUserEmail] = useState('')
 
   const [formData, setFormData] = useState({
     amount: '',
@@ -44,6 +53,12 @@ export default function AddTransactionPage() {
     description: '',
     roundupOption: 'no',
   })
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.email) setUserEmail(user.email)
+    })
+  }, [])
 
   const calculateRoundup = (amount: number, option: string): number => {
     switch (option) {
@@ -58,22 +73,119 @@ export default function AddTransactionPage() {
 
   const roundupAmount = calculateRoundup(parseFloat(formData.amount) || 0, formData.roundupOption)
 
+  const logExpenseWithoutRoundup = async (amount: number) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not logged in')
+
+    // Just log the transaction with roundup = 0
+    const { error: txError } = await supabase.from('transactions').insert({
+      user_id: user.id,
+      amount,
+      category: formData.category,
+      description: formData.description || null,
+      roundup_amount: 0,
+      source: 'manual',
+    })
+    if (txError) throw txError
+
+    // Update monthly stats
+    const now = new Date()
+    const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+    const { data: stats } = await supabase
+      .from('monthly_stats')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('month_year', monthYear)
+      .single()
+
+    if (stats) {
+      await supabase
+        .from('monthly_stats')
+        .update({
+          total_spent: (stats.total_spent || 0) + amount,
+          transaction_count: (stats.transaction_count || 0) + 1,
+          avg_transaction: ((stats.total_spent || 0) + amount) / ((stats.transaction_count || 0) + 1),
+        })
+        .eq('id', stats.id)
+    } else {
+      await supabase.from('monthly_stats').insert({
+        user_id: user.id,
+        month_year: monthYear,
+        total_spent: amount,
+        total_roundup: 0,
+        transaction_count: 1,
+        avg_transaction: amount,
+      })
+    }
+  }
+
+  const openRazorpayForRoundup = async (amount: number, roundup: number) => {
+    // Create Razorpay order for the roundup amount
+    const res = await fetch('/api/razorpay/create-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: roundup }),
+    })
+
+    const { orderId, error: orderError } = await res.json()
+    if (orderError) throw new Error(orderError)
+
+    return new Promise<void>((resolve, reject) => {
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: Math.round(roundup * 100), // paise
+        currency: 'INR',
+        name: 'RoundUp Savings',
+        description: `Roundup ₹${roundup.toFixed(2)} → Piggy Bank`,
+        order_id: orderId,
+        handler: async (response: any) => {
+          try {
+            // Verify payment and log transaction + update piggy bank on server
+            const verifyRes = await fetch('/api/razorpay/verify-roundup', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                roundup_amount: roundup,
+                expense_amount: amount,
+                category: formData.category,
+                description: formData.description,
+              }),
+            })
+
+            const result = await verifyRes.json()
+            if (result.success) {
+              resolve()
+            } else {
+              reject(new Error(result.error || 'Payment verification failed'))
+            }
+          } catch (err) {
+            reject(err)
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            reject(new Error('Payment cancelled — expense not logged'))
+          },
+        },
+        prefill: { email: userEmail },
+        theme: { color: '#ec4899' },
+      }
+
+      const rzp = new window.Razorpay(options)
+      rzp.open()
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        setError('You must be logged in')
-        setLoading(false)
-        return
-      }
-
       const amount = parseFloat(formData.amount)
       if (isNaN(amount) || amount <= 0) {
         setError('Please enter a valid amount')
@@ -82,80 +194,18 @@ export default function AddTransactionPage() {
       }
 
       const roundup = calculateRoundup(amount, formData.roundupOption)
-      const totalDeduction = amount + roundup
 
-      // Check spendable balance
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('spendable_balance, piggy_bank_balance, total_saved')
-        .eq('id', user.id)
-        .single()
-
-      const spendable = profile?.spendable_balance || 0
-      if (spendable < totalDeduction) {
-        setError(`Insufficient balance. You have ₹${spendable.toFixed(2)} but need ₹${totalDeduction.toFixed(2)} (₹${amount.toFixed(2)} + ₹${roundup.toFixed(2)} roundup). Add money to your wallet first.`)
-        setLoading(false)
-        return
-      }
-
-      // Add transaction
-      const { error: txError } = await supabase.from('transactions').insert({
-        user_id: user.id,
-        amount: amount,
-        category: formData.category,
-        description: formData.description || null,
-        roundup_amount: roundup,
-        source: 'manual',
-      })
-
-      if (txError) throw txError
-
-      // Update balances: deduct expense + roundup from spendable, add roundup to piggy bank
-      const newSpendable = spendable - totalDeduction
-      const newPiggy = (profile?.piggy_bank_balance || 0) + roundup
-      const newTotalSaved = (profile?.total_saved || 0) + roundup
-
-      const { error: updateError } = await supabase
-        .from('user_profiles')
-        .update({
-          spendable_balance: newSpendable,
-          piggy_bank_balance: newPiggy,
-          total_saved: newTotalSaved,
-        })
-        .eq('id', user.id)
-
-      if (updateError) throw updateError
-
-      // Update monthly stats
-      const now = new Date()
-      const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-
-      const { data: stats } = await supabase
-        .from('monthly_stats')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('month_year', monthYear)
-        .single()
-
-      if (stats) {
-        await supabase
-          .from('monthly_stats')
-          .update({
-            total_spent: (stats.total_spent || 0) + amount,
-            total_roundup: (stats.total_roundup || 0) + roundup,
-            transaction_count: (stats.transaction_count || 0) + 1,
-            avg_transaction: ((stats.total_spent || 0) + amount) / ((stats.transaction_count || 0) + 1),
-          })
-          .eq('id', stats.id)
+      if (roundup > 0) {
+        if (!razorpayReady) {
+          setError('Payment gateway is loading, please try again')
+          setLoading(false)
+          return
+        }
+        // Open Razorpay to charge the roundup, which also logs the transaction on success
+        await openRazorpayForRoundup(amount, roundup)
       } else {
-        await supabase.from('monthly_stats').insert({
-          user_id: user.id,
-          month_year: monthYear,
-          total_spent: amount,
-          total_roundup: roundup,
-          transaction_count: 1,
-          avg_transaction: amount,
-        })
+        // No roundup — just log the expense
+        await logExpenseWithoutRoundup(amount)
       }
 
       router.push('/dashboard')
@@ -168,6 +218,11 @@ export default function AddTransactionPage() {
 
   return (
     <div className="space-y-6">
+      <Script
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        onLoad={() => setRazorpayReady(true)}
+      />
+
       <div>
         <h1 className="text-3xl font-bold">Add Expense</h1>
         <p className="text-muted-foreground mt-2">Track your spending and save with roundups</p>
@@ -247,15 +302,19 @@ export default function AddTransactionPage() {
 
               {roundupAmount > 0 && (
                 <div className="bg-green-50 border border-green-200 rounded p-3 text-sm">
-                  <p className="font-medium text-green-900">Savings: ₹{roundupAmount.toFixed(2)}</p>
+                  <p className="font-medium text-green-900">Roundup: ₹{roundupAmount.toFixed(2)}</p>
                   <p className="text-green-700 text-xs mt-1">
-                    This amount will be added to your piggy bank
+                    You&apos;ll pay ₹{roundupAmount.toFixed(2)} via Razorpay — it goes straight to your piggy bank 🐷
                   </p>
                 </div>
               )}
 
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Adding transaction...' : 'Add Transaction'}
+                {loading
+                  ? 'Processing...'
+                  : roundupAmount > 0
+                    ? `Log Expense & Pay ₹${roundupAmount.toFixed(2)} Roundup`
+                    : 'Log Expense'}
               </Button>
             </form>
           </CardContent>
