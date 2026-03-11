@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, Zap, TrendingUp, Sparkles, Activity, PieChart, ShieldCheck, ChevronRight } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface Transaction {
   id: string
@@ -87,6 +88,23 @@ const ROASTS = [
   "Consistent spender. I respect the predictability. Very organized chaos! 📊",
 ]
 
+const containerVars = {
+  hidden: { opacity: 0 },
+  visible: { 
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+}
+
+const cardVars: any = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { type: "spring", damping: 25, stiffness: 120 }
+  }
+}
+
 export default function InsightsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
@@ -99,9 +117,11 @@ export default function InsightsPage() {
     savingsPercent: 0,
     avgTransaction: 0,
   })
+  const [mounted, setMounted] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
+    setMounted(true)
     const loadInsights = async () => {
       try {
         const {
@@ -110,7 +130,6 @@ export default function InsightsPage() {
 
         if (!user) return
 
-        // Fetch transactions
         const { data: txData } = await supabase
           .from('transactions')
           .select('*')
@@ -124,7 +143,6 @@ export default function InsightsPage() {
 
         setTransactions(txData)
 
-        // Calculate statistics
         const totalSpent = txData.reduce((sum, tx) => sum + tx.amount, 0)
         const totalSaved = txData.reduce((sum, tx) => sum + tx.roundup_amount, 0)
 
@@ -133,9 +151,9 @@ export default function InsightsPage() {
           categoryMap[tx.category] = (categoryMap[tx.category] || 0) + tx.amount
         })
 
-        const topCategory = Object.keys(categoryMap).reduce((a, b) =>
-          categoryMap[a] > categoryMap[b] ? a : b
-        )
+        const topCategory = Object.keys(categoryMap).length > 0 
+          ? Object.keys(categoryMap).reduce((a, b) => categoryMap[a] > categoryMap[b] ? a : b)
+          : 'None'
 
         const savingsPercent = totalSpent > 0 ? (totalSaved / totalSpent) * 100 : 0
         const avgTransaction = txData.length > 0 ? totalSpent / txData.length : 0
@@ -148,13 +166,10 @@ export default function InsightsPage() {
           avgTransaction,
         })
 
-        // Determine personality
         detectPersonality(categoryMap, totalSpent, totalSaved, txData.length)
-
-        // Generate roast
         generateRoast(totalSpent, totalSaved, savingsPercent, topCategory)
       } catch (error) {
-        console.error('[v0] Error loading insights:', error)
+        console.error('Error loading insights:', error)
       } finally {
         setLoading(false)
       }
@@ -169,27 +184,25 @@ export default function InsightsPage() {
     totalSaved: number,
     transactionCount: number
   ) => {
-    const topCategory = Object.keys(categoryMap).reduce((a, b) =>
-      categoryMap[a] > categoryMap[b] ? a : b
-    )
+    if (transactionCount === 0) return
+    const topCategory = Object.keys(categoryMap).reduce((a, b) => categoryMap[a] > categoryMap[b] ? a : b)
     const savingsPercent = totalSpent > 0 ? (totalSaved / totalSpent) * 100 : 0
     const avgTransaction = transactionCount > 0 ? totalSpent / transactionCount : 0
 
-    let personalityType = 'fox' // default
+    let personalityType = 'fox'
 
-    // Simple personality detection based on spending patterns
     if (categoryMap['Entertainment'] > totalSpent * 0.25) {
-      personalityType = 'lion' // High entertainment spending
+      personalityType = 'lion'
     } else if (categoryMap['Food & Dining'] > totalSpent * 0.3) {
-      personalityType = 'butterfly' // Spontaneous eater
+      personalityType = 'butterfly'
     } else if (savingsPercent > 30) {
-      personalityType = 'turtle' // High savings rate
+      personalityType = 'turtle'
     } else if (categoryMap['Shopping'] > totalSpent * 0.2) {
-      personalityType = 'butterfly' // Fashion conscious
+      personalityType = 'butterfly'
     } else if (categoryMap['Subscriptions'] > totalSpent * 0.1) {
-      personalityType = 'bee' // Goal oriented with subscriptions
+      personalityType = 'bee'
     } else if (avgTransaction > 2000) {
-      personalityType = 'eagle' // Big spender, big vision
+      personalityType = 'eagle'
     }
 
     setPersonality(PERSONALITIES[personalityType])
@@ -202,13 +215,10 @@ export default function InsightsPage() {
     topCategory: string
   ) => {
     let selectedRoast = ROASTS[Math.floor(Math.random() * ROASTS.length)]
-
-    // Replace placeholders
     selectedRoast = selectedRoast.replace('{spent}', totalSpent.toFixed(0))
     selectedRoast = selectedRoast.replace('{saved}', totalSaved.toFixed(0))
     selectedRoast = selectedRoast.replace('{savings_percent}', Math.round(savingsPercent).toString())
     selectedRoast = selectedRoast.replace('{coffee_count}', Math.round(totalSaved / 150).toString())
-
     setRoast(selectedRoast)
   }
 
@@ -220,186 +230,196 @@ export default function InsightsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-muted-foreground">Loading your insights...</p>
+      <div className="flex flex-col items-center justify-center min-h-[500px] gap-4">
+        <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
+        <p className="text-slate-400 font-bold tracking-widest uppercase text-xs">Analyzing Behavioral Patterns...</p>
       </div>
     )
   }
 
+  if (!mounted) return null
+
   if (transactions.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-lg font-semibold mb-4">No transactions yet</p>
-        <p className="text-muted-foreground mb-6">Add some expenses to see your spending insights</p>
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-8 bg-white/40 rounded-[32px] border border-dashed border-slate-200">
+        <Activity className="w-16 h-16 text-slate-200 mb-4" />
+        <h2 className="text-2xl font-bold text-slate-900">Psychology Locked</h2>
+        <p className="text-slate-500 mt-2 max-w-sm">We need at least 1 record to calculate your behavioral profile and financial personality.</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">Spending Insights</h1>
-        <p className="text-muted-foreground mt-2">Discover your spending personality and get personalized insights</p>
+    <motion.div 
+      variants={containerVars}
+      initial="hidden"
+      animate="visible"
+      className="space-y-10 max-w-5xl mx-auto pb-20"
+    >
+      <div className="px-2">
+        <h1 className="text-4xl font-black tracking-tight text-slate-900">Behavioral Insights</h1>
+        <p className="text-slate-500 mt-1 font-medium italic">Your spending habit psychology, translated into data.</p>
       </div>
 
-      {/* Personality Card */}
       {personality && (
-        <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200">
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div>
-                <CardTitle className="text-3xl mb-2">
-                  {personality.emoji} {personality.type}
-                </CardTitle>
-                <CardDescription className="text-base">{personality.description}</CardDescription>
+        <motion.div variants={cardVars}>
+          <Card className="border-none shadow-2xl bg-indigo-600 rounded-[40px] overflow-hidden text-white relative">
+            <CardHeader className="p-10 pb-0">
+              <div className="flex items-start justify-between relative z-10">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-indigo-200">
+                    <Sparkles className="w-4 h-4 fill-current" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Active Archetype</span>
+                  </div>
+                  <CardTitle className="text-4xl font-black tracking-tight">{personality.emoji} {personality.type}</CardTitle>
+                  <CardDescription className="text-indigo-100/70 font-bold text-lg">{personality.description}</CardDescription>
+                </div>
+                <div className="w-20 h-20 bg-white/10 rounded-[32px] flex items-center justify-center border border-white/10">
+                   <Zap className="w-10 h-10 text-white fill-current" />
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <p className="font-semibold mb-2">Your Traits</p>
-              <div className="flex flex-wrap gap-2">
-                {personality.traits.map((trait) => (
-                  <span key={trait} className="bg-white px-3 py-1 rounded-full text-sm">
-                    {trait}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <p className="font-semibold text-green-700 mb-2">Your Strengths</p>
-                <ul className="space-y-1 text-sm">
-                  {personality.strengths.map((strength) => (
-                    <li key={strength} className="text-green-600">
-                      ✓ {strength}
-                    </li>
+            </CardHeader>
+            <CardContent className="p-10 space-y-8 relative z-10">
+              <div className="space-y-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200 ml-1">Core Traits</p>
+                <div className="flex flex-wrap gap-2">
+                  {personality.traits.map((trait) => (
+                    <span key={trait} className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl text-xs font-black border border-white/10">
+                      {trait}
+                    </span>
                   ))}
-                </ul>
+                </div>
               </div>
 
-              <div>
-                <p className="font-semibold text-blue-700 mb-2">Areas to Improve</p>
-                <ul className="space-y-1 text-sm">
-                  {personality.improvements.map((improvement) => (
-                    <li key={improvement} className="text-blue-600">
-                      → {improvement}
-                    </li>
-                  ))}
-                </ul>
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="p-6 bg-white/5 rounded-[32px] border border-white/10">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-300 mb-4">Strategic Strengths</p>
+                  <ul className="space-y-3">
+                    {personality.strengths.map((strength) => (
+                      <li key={strength} className="text-sm font-bold flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-indigo-400" /> {strength}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="p-6 bg-slate-900 rounded-[32px] border border-white/5">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">Growth Vectors</p>
+                  <ul className="space-y-3">
+                    {personality.improvements.map((improvement) => (
+                      <li key={improvement} className="text-sm font-bold flex items-center gap-2">
+                        <ChevronRight className="w-4 h-4 text-indigo-500" /> {improvement}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+            <div className="absolute right-0 top-0 w-1/3 h-full bg-gradient-to-l from-white/10 to-transparent pointer-events-none" />
+          </Card>
+        </motion.div>
       )}
 
       {/* Daily Roast */}
-      <Card className="bg-gradient-to-r from-amber-50 to-orange-50">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Your Daily Roast</CardTitle>
-            <Button size="sm" variant="outline" onClick={refreshRoast} className="gap-2">
-              <RefreshCw className="w-4 h-4" />
-              New Roast
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <p className="text-lg italic text-gray-700">"{roast}"</p>
-          <p className="text-xs text-muted-foreground mt-4">
-            Fresh insight generated based on your spending patterns
-          </p>
-        </CardContent>
-      </Card>
+      <motion.div variants={cardVars}>
+        <Card className="border-none shadow-xl bg-white/60 backdrop-blur-xl ring-1 ring-slate-100 rounded-[32px] overflow-hidden">
+          <CardHeader className="p-8 pb-0">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-indigo-600">
+                  <Activity className="w-4 h-4" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Algorithmic Roast</span>
+                </div>
+                <CardTitle className="text-2xl font-black">Financial Commentary</CardTitle>
+              </div>
+              <Button size="sm" variant="ghost" onClick={refreshRoast} className="h-10 px-4 rounded-xl bg-slate-50 hover:bg-slate-100 font-bold gap-2">
+                <RefreshCw className="w-4 h-4" />
+                Next
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-8 pt-6">
+            <div className="p-8 bg-slate-950 rounded-[24px] relative overflow-hidden group">
+               <p className="text-xl font-bold text-white italic relative z-10 leading-relaxed">"{roast}"</p>
+               <div className="mt-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-600 relative z-10">
+                  <Sparkles className="w-3 h-3 text-indigo-500" /> Dynamic Insight Engine v4.2
+               </div>
+               <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-indigo-600/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Spending Statistics */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Spending</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">₹{stats.totalSpent.toFixed(2)}</p>
-            <p className="text-xs text-muted-foreground mt-1">{transactions.length} transactions</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Average Spend</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">₹{stats.avgTransaction.toFixed(2)}</p>
-            <p className="text-xs text-muted-foreground mt-1">Per transaction</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Savings Rate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-green-600">{stats.savingsPercent}%</p>
-            <p className="text-xs text-muted-foreground mt-1">Of your spending</p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-6 md:grid-cols-3">
+        {[
+          { label: 'Total Volume', value: `₹${stats.totalSpent.toFixed(2)}`, sub: `${transactions.length} Active Records`, icon: TrendingUp },
+          { label: 'Avg Velocity', value: `₹${stats.avgTransaction.toFixed(2)}`, sub: 'Per transaction event', icon: Activity },
+          { label: 'Savings Efficiency', value: `${stats.savingsPercent}%`, sub: 'Capital retention rate', icon: ShieldCheck, accent: true },
+        ].map((item, idx) => (
+          <motion.div key={item.label} variants={cardVars}>
+            <Card className="border-none shadow-xl bg-white/60 backdrop-blur-xl ring-1 ring-slate-100 rounded-[32px]">
+              <CardContent className="p-8">
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.accent ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-indigo-600'}`}>
+                    <item.icon className="w-5 h-5" />
+                  </div>
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{item.label}</p>
+                <p className={`text-2xl font-black tracking-tight ${item.accent ? 'text-indigo-600' : 'text-slate-900'}`}>{item.value}</p>
+                <p className="text-xs font-bold text-slate-400 mt-1 italic">{item.sub}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
-      {/* Top Category */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Your Top Spending Category</CardTitle>
-          <CardDescription>Where most of your money goes</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <p className="text-2xl font-bold capitalize">{stats.topCategory}</p>
-            <p className="text-sm text-muted-foreground">
-              {((transactions
-                .filter((t) => t.category === stats.topCategory)
-                .reduce((sum, t) => sum + t.amount, 0) /
-                stats.totalSpent) *
-                100).toFixed(1)}
-              % of your total spending
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Top Category & Tips */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <motion.div variants={cardVars}>
+          <Card className="border-none shadow-xl bg-white/60 backdrop-blur-xl ring-1 ring-slate-100 rounded-[40px] overflow-hidden h-full">
+            <CardHeader className="p-8 pb-0">
+               <CardTitle className="text-xs font-black uppercase tracking-widest text-indigo-600 flex items-center gap-2">
+                 <PieChart className="w-4 h-4" /> Dominant Vertical
+               </CardTitle>
+            </CardHeader>
+            <CardContent className="p-8 pt-6">
+              <div className="space-y-4">
+                <p className="text-4xl font-black text-slate-900 capitalize tracking-tighter">{stats.topCategory}</p>
+                <p className="text-sm font-bold text-slate-500">
+                  This segment accounts for <span className="text-indigo-600">{((transactions.filter((t) => t.category === stats.topCategory).reduce((sum, t) => sum + t.amount, 0) / stats.totalSpent) * 100).toFixed(1)}%</span> of your total financial output.
+                </p>
+                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden mt-4">
+                  <div className="h-full bg-indigo-600" style={{ width: `${(transactions.filter((t) => t.category === stats.topCategory).reduce((sum, t) => sum + t.amount, 0) / stats.totalSpent) * 100}%` }} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-      {/* Tips */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Personalized Tips</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {stats.savingsPercent < 10 && (
-            <p className="text-sm">
-              💡 Your savings rate is below 10%. Try rounding up to the nearest 100 for faster savings growth!
-            </p>
-          )}
-          {transactions.length > 20 && (
-            <p className="text-sm">
-              💡 You're logging transactions consistently! Keep it up for better insights.
-            </p>
-          )}
-          {stats.topCategory === 'Food & Dining' && (
-            <p className="text-sm">
-              💡 Food spending is high. Try meal planning to reduce both spending and waste!
-            </p>
-          )}
-          {stats.topCategory === 'Entertainment' && (
-            <p className="text-sm">
-              💡 Entertainment is fun, but consider setting a monthly budget to balance fun and savings.
-            </p>
-          )}
-          {stats.topCategory === 'Shopping' && (
-            <p className="text-sm">
-              💡 Shopping is great, but try the 24-hour rule before making purchases!
-            </p>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+        <motion.div variants={cardVars}>
+          <Card className="border-none shadow-xl bg-slate-900 rounded-[40px] overflow-hidden h-full">
+            <CardHeader className="p-8 pb-0">
+               <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                 <Sparkles className="w-4 h-4 text-indigo-400" /> Strategic Tips
+               </CardTitle>
+            </CardHeader>
+            <CardContent className="p-8 pt-6 space-y-4">
+              {[
+                stats.savingsPercent < 10 && "Your savings rate is below the 10% benchmark. Increase roundups to 100.",
+                transactions.length > 20 && "Consistency detected. Your behavioral profile is 94% accurate.",
+                stats.topCategory === 'Food & Dining' && "Nutritional costs are high. Explore subscription-based meal planning.",
+                stats.topCategory === 'Entertainment' && "Dopamine costs are peaking. Cap monthly leisure budgets.",
+                stats.topCategory === 'Shopping' && "Apply the 24-hour cooling period to non-essential imports.",
+              ].filter(Boolean).map((tip, idx) => (
+                <div key={idx} className="flex gap-3 items-start group">
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5" />
+                  <p className="text-sm font-bold text-slate-400 group-hover:text-slate-200 transition-colors">{tip}</p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    </motion.div>
   )
 }

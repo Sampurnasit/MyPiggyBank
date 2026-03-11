@@ -7,7 +7,25 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PiggyBank, ArrowRight, Wallet } from 'lucide-react'
+import { PiggyBank, ArrowRight, Wallet, ArrowDownToLine, Info } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+
+const containerVars = {
+  hidden: { opacity: 0 },
+  visible: { 
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+}
+
+const cardVars: any = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { type: "spring", damping: 25, stiffness: 120 }
+  }
+}
 
 export default function WithdrawPage() {
   const router = useRouter()
@@ -67,96 +85,150 @@ export default function WithdrawPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Withdraw Savings</h1>
-        <p className="text-muted-foreground mt-2">Move money from your piggy bank back to spendable balance</p>
+    <motion.div 
+      variants={containerVars}
+      initial="hidden"
+      animate="visible"
+      className="space-y-10 max-w-2xl mx-auto pb-20"
+    >
+      <div className="px-2">
+        <h1 className="text-4xl font-black tracking-tight text-slate-900">Unlock Savings</h1>
+        <p className="text-slate-500 mt-1 font-medium italic">Transfer funds from your Piggy Bank back to Spendable Balance.</p>
       </div>
 
-      <div className="max-w-md">
-        <div className="grid gap-4 grid-cols-2 mb-4">
-          <Card className="border-pink-200 bg-pink-50">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
-                <PiggyBank className="w-6 h-6 text-pink-600" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Piggy Bank</p>
-                  <p className="text-xl font-bold text-pink-700">₹{piggyBalance.toFixed(2)}</p>
+      <div className="space-y-6">
+        <div className="grid gap-4 grid-cols-2">
+          <motion.div variants={cardVars}>
+            <Card className="border-none shadow-xl bg-slate-900 rounded-[32px] overflow-hidden text-white">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center">
+                    <PiggyBank className="w-5 h-5 text-indigo-400" />
+                  </div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Savings</p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-blue-200 bg-blue-50">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
-                <Wallet className="w-6 h-6 text-blue-600" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Spendable</p>
-                  <p className="text-xl font-bold text-blue-700">₹{spendableBalance.toFixed(2)}</p>
+                <p className="text-2xl font-black tracking-tight text-white">₹{piggyBalance.toFixed(2)}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+          
+          <motion.div variants={cardVars}>
+            <Card className="border-none shadow-xl bg-white/60 backdrop-blur-xl ring-1 ring-slate-100 rounded-[32px] overflow-hidden">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
+                    <Wallet className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Spendable</p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                <p className="text-2xl font-black tracking-tight text-slate-900">₹{spendableBalance.toFixed(2)}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Withdraw from Piggy Bank</CardTitle>
-            <CardDescription>
-              Transfer savings back to your spendable wallet
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleWithdraw} className="space-y-6">
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
-                  {error}
-                </div>
-              )}
+        <motion.div variants={cardVars}>
+          <Card className="border-none shadow-xl bg-white/60 backdrop-blur-xl ring-1 ring-slate-100 rounded-[40px] overflow-hidden">
+            <CardHeader className="p-10 pb-0">
+              <CardTitle className="text-2xl font-black flex items-center gap-3">
+                <ArrowDownToLine className="w-6 h-6 text-indigo-600" />
+                Withdraw Capital
+              </CardTitle>
+              <CardDescription className="text-slate-500 font-medium pt-1">
+                Moving funds back to spendable does not count as spending, but reduces your saved assets.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-10">
+              <form onSubmit={handleWithdraw} className="space-y-8">
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl text-sm font-bold flex items-center gap-2">
+                    <Info className="w-4 h-4" />
+                    {error}
+                  </div>
+                )}
 
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount (₹)</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  max={piggyBalance}
-                  placeholder="Enter amount"
-                  required
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="text-lg"
-                />
-                <button
-                  type="button"
-                  className="text-xs text-primary underline"
-                  onClick={() => setAmount(String(piggyBalance))}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-end ml-1">
+                    <Label htmlFor="amount" className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Withdrawal Amount (₹)</Label>
+                    <button
+                      type="button"
+                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 underline"
+                      onClick={() => setAmount(String(piggyBalance))}
+                    >
+                      MAX (₹{piggyBalance.toFixed(2)})
+                    </button>
+                  </div>
+                  <div className="relative group">
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      placeholder="0.00"
+                      required
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="h-16 bg-slate-50 border-none rounded-[24px] px-8 text-2xl font-black focus-visible:ring-4 focus-visible:ring-indigo-500/10 transition-all"
+                    />
+                    <div className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors">
+                      INR
+                    </div>
+                  </div>
+                </div>
+
+                <AnimatePresence>
+                  {parseFloat(amount) > 0 && parseFloat(amount) <= piggyBalance && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="bg-indigo-50 border border-indigo-100 rounded-[24px] p-6 text-sm"
+                    >
+                      <div className="flex items-center justify-between font-black text-indigo-900 mb-4">
+                        <div className="flex items-center gap-2">
+                          <PiggyBank className="w-5 h-5" /> ₹{parseFloat(amount).toFixed(2)}
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-indigo-400" />
+                        <div className="flex items-center gap-2">
+                          <Wallet className="w-5 h-5" /> Wallet
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-tighter">New Piggy Balance</p>
+                          <p className="font-black text-indigo-900">₹{(piggyBalance - parseFloat(amount)).toFixed(2)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-tighter">New Spendable</p>
+                          <p className="font-black text-indigo-900">₹{(spendableBalance + parseFloat(amount)).toFixed(2)}</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <Button 
+                  type="submit" 
+                  className="w-full h-16 text-lg font-black gap-3 rounded-[24px] bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-500/20 transition-all transition-transform active:scale-[0.98]" 
+                  disabled={loading || piggyBalance === 0}
                 >
-                  Withdraw all (₹{piggyBalance.toFixed(2)})
-                </button>
-              </div>
-
-              {parseFloat(amount) > 0 && parseFloat(amount) <= piggyBalance && (
-                <div className="bg-amber-50 border border-amber-200 rounded p-3 text-sm">
-                  <p className="font-medium text-amber-900 flex items-center gap-1">
-                    <PiggyBank className="w-4 h-4" /> ₹{parseFloat(amount).toFixed(2)}
-                    <ArrowRight className="w-3 h-3" />
-                    <Wallet className="w-4 h-4" /> Spendable Balance
-                  </p>
-                  <p className="text-amber-700 text-xs mt-1">
-                    New piggy bank: ₹{(piggyBalance - parseFloat(amount)).toFixed(2)} | New spendable: ₹{(spendableBalance + parseFloat(amount)).toFixed(2)}
-                  </p>
-                </div>
-              )}
-
-              <Button type="submit" className="w-full" disabled={loading || piggyBalance === 0}>
-                {loading ? 'Processing...' : 'Withdraw to Wallet'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+                  {loading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      Finalizing...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowDownToLine className="w-6 h-6" />
+                      Withdraw to Spendable
+                    </>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   )
 }

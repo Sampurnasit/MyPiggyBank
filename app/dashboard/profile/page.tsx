@@ -8,7 +8,23 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { PiggyBank, Star, TrendingUp, Award, Edit2, Save, X } from 'lucide-react'
+import { 
+  PiggyBank, 
+  Star, 
+  TrendingUp, 
+  Award, 
+  Edit2, 
+  Save, 
+  X, 
+  User, 
+  Calendar, 
+  ShieldCheck,
+  Zap,
+  Sparkles,
+  Wallet,
+  Activity
+} from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface UserProfile {
   id: string
@@ -25,7 +41,32 @@ interface UserProfile {
 }
 
 const LEVEL_NAMES = ['', 'Saver Seedling', 'Budget Bud', 'Thrift Titan', 'Penny Pro', 'Round Up Ranger', 'Savings Legend']
-const LEVEL_COLORS = ['', 'bg-green-100 text-green-800', 'bg-blue-100 text-blue-800', 'bg-purple-100 text-purple-800', 'bg-orange-100 text-orange-800', 'bg-red-100 text-red-800', 'bg-yellow-100 text-yellow-800']
+const LEVEL_COLORS = [
+  '', 
+  'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200', 
+  'bg-violet-50 text-violet-700 ring-1 ring-violet-200', 
+  'bg-purple-50 text-purple-700 ring-1 ring-purple-200', 
+  'bg-fuchsia-50 text-fuchsia-700 ring-1 ring-fuchsia-200', 
+  'bg-pink-50 text-pink-700 ring-1 ring-pink-200', 
+  'bg-rose-50 text-rose-700 ring-1 ring-rose-200'
+]
+
+const containerVars = {
+  hidden: { opacity: 0 },
+  visible: { 
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+}
+
+const cardVars: any = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { type: "spring", damping: 25, stiffness: 120 }
+  }
+}
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -35,9 +76,11 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [form, setForm] = useState({ username: '', full_name: '' })
+  const [mounted, setMounted] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
+    setMounted(true)
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -78,179 +121,257 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-muted-foreground">Loading profile...</p>
+      <div className="flex flex-col items-center justify-center min-h-[500px] gap-4">
+        <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
+        <p className="text-slate-400 font-bold tracking-widest uppercase text-xs">Accessing User Files...</p>
       </div>
     )
   }
 
-  if (!profile) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-muted-foreground">Profile not found.</p>
-      </div>
-    )
-  }
+  if (!profile) return null
 
   const levelName = LEVEL_NAMES[profile.level] || `Level ${profile.level}`
-  const levelColor = LEVEL_COLORS[profile.level] || 'bg-gray-100 text-gray-800'
+  const levelColor = LEVEL_COLORS[profile.level] || 'bg-slate-100 text-slate-800'
+
+  if (!mounted) return null
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <motion.div 
+      variants={containerVars}
+      initial="hidden"
+      animate="visible"
+      className="max-w-4xl mx-auto space-y-10 pb-20"
+    >
+      <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 px-2">
         <div>
-          <h1 className="text-3xl font-bold">My Profile</h1>
-          <p className="text-muted-foreground">Track your savings journey</p>
+          <h1 className="text-4xl font-black tracking-tight text-slate-900">Account</h1>
+          <p className="text-slate-500 mt-1 font-medium italic">Manage your profile and track your growth.</p>
         </div>
-        {!editing ? (
-          <Button variant="outline" onClick={() => setEditing(true)} className="gap-2">
-            <Edit2 className="w-4 h-4" />
-            Edit Profile
-          </Button>
-        ) : (
-          <div className="flex gap-2">
-            <Button onClick={handleSave} disabled={saving} className="gap-2">
-              <Save className="w-4 h-4" />
-              {saving ? 'Saving...' : 'Save'}
+        
+        <div className="flex gap-3 w-full md:w-auto">
+          {!editing ? (
+            <Button 
+              variant="outline" 
+              onClick={() => setEditing(true)} 
+              className="h-12 px-6 rounded-2xl bg-white/50 border-none shadow-sm ring-1 ring-slate-200 hover:ring-indigo-500/20 font-bold gap-2 flex-1 md:flex-none"
+            >
+              <Edit2 className="w-4 h-4 text-indigo-600" />
+              Edit Profile
             </Button>
-            <Button variant="outline" onClick={() => { setEditing(false); setForm({ username: profile.username, full_name: profile.full_name || '' }) }} className="gap-2">
-              <X className="w-4 h-4" />
-              Cancel
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {success && (
-        <div className="rounded-md bg-green-50 border border-green-200 p-3 text-green-800 text-sm">
-          Profile updated successfully!
-        </div>
-      )}
-      {error && (
-        <div className="rounded-md bg-red-50 border border-red-200 p-3 text-red-800 text-sm">
-          {error}
-        </div>
-      )}
-
-      {/* Profile Info Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Personal Information</CardTitle>
-          <CardDescription>Your account details</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">
-              {profile.username?.[0]?.toUpperCase() || '?'}
-            </div>
-            <div>
-              <p className="font-semibold text-lg">{profile.username}</p>
-              {profile.full_name && <p className="text-muted-foreground">{profile.full_name}</p>}
-              <p className="text-xs text-muted-foreground mt-1">
-                Member since {new Date(profile.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
-              </p>
-            </div>
-          </div>
-
-          {editing && (
-            <>
-              <Separator />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    value={form.username}
-                    onChange={(e) => setForm(f => ({ ...f, username: e.target.value }))}
-                    placeholder="your_username"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="full_name">Full Name</Label>
-                  <Input
-                    id="full_name"
-                    value={form.full_name}
-                    onChange={(e) => setForm(f => ({ ...f, full_name: e.target.value }))}
-                    placeholder="Your full name"
-                  />
-                </div>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Stats Grid */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <PiggyBank className="w-4 h-4" />
-              Piggy Bank Balance
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-primary">₹{profile.piggy_bank_balance.toFixed(2)}</p>
-            <p className="text-xs text-muted-foreground mt-1">Spendable: ₹{profile.spendable_balance.toFixed(2)} | Total ever saved: ₹{profile.total_saved.toFixed(2)}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Star className="w-4 h-4" />
-              Level & XP
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3">
-              <p className="text-3xl font-bold">{profile.level}</p>
-              <Badge className={levelColor}>{levelName}</Badge>
-            </div>
-            <div className="mt-3 space-y-1">
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{profile.xp_points} XP</span>
-                <span>{xpForNextLevel} XP</span>
-              </div>
-              <div className="w-full bg-secondary rounded-full h-2">
-                <div
-                  className="bg-primary h-2 rounded-full transition-all"
-                  style={{ width: `${xpProgress}%` }}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {xpForNextLevel - (profile.xp_points % 500)} XP to next level
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Spending Personality */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5" />
-            Spending Personality
-          </CardTitle>
-          <CardDescription>Based on your transaction patterns</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {profile.spending_personality && profile.spending_personality !== 'unknown' ? (
-            <div className="flex items-center gap-3">
-              <Award className="w-8 h-8 text-primary" />
-              <div>
-                <p className="text-lg font-semibold capitalize">{profile.spending_personality}</p>
-                <p className="text-sm text-muted-foreground">Keep adding transactions to refine your profile</p>
-              </div>
-            </div>
           ) : (
-            <p className="text-muted-foreground text-sm">
-              Add more transactions to discover your spending personality.
-            </p>
+            <div className="flex gap-2 w-full">
+              <Button 
+                onClick={handleSave} 
+                disabled={saving} 
+                className="h-12 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2 flex-1 transition-all shadow-lg shadow-indigo-500/20"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? 'Syncing...' : 'Save Changes'}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => { setEditing(false); setForm({ username: profile.username, full_name: profile.full_name || '' }) }} 
+                className="h-12 px-6 rounded-2xl bg-white border-none shadow-sm ring-1 ring-slate-200 font-bold gap-2 flex-1"
+              >
+                <X className="w-4 h-4 text-slate-400" />
+                Cancel
+              </Button>
+            </div>
           )}
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {success && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="rounded-2xl bg-indigo-50 border border-indigo-200 p-4 text-indigo-800 text-sm font-bold flex items-center gap-3"
+          >
+            <ShieldCheck className="w-5 h-5 text-indigo-500" />
+            Profile updated successfully!
+          </motion.div>
+        )}
+        {error && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="rounded-2xl bg-red-50 border border-red-200 p-4 text-red-800 text-sm font-bold flex items-center gap-3"
+          >
+            <X className="w-5 h-5 text-red-500" />
+            {error}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="grid gap-8 lg:grid-cols-3">
+        {/* Profile Card */}
+        <motion.div variants={cardVars} className="lg:col-span-2">
+          <Card className="border-none shadow-xl bg-white/60 backdrop-blur-xl ring-1 ring-slate-100 rounded-[40px] overflow-hidden">
+            <CardHeader className="p-10 pb-0">
+              <CardTitle className="text-2xl font-black">Personal Data</CardTitle>
+              <CardDescription>Your identifiable account information</CardDescription>
+            </CardHeader>
+            <CardContent className="p-10 space-y-8">
+              <div className="flex items-center gap-6">
+                <div className="w-24 h-24 rounded-[32px] bg-indigo-50 flex items-center justify-center text-4xl font-black text-indigo-600 shadow-inner group">
+                  <span className="group-hover:scale-110 transition-transform">{profile.username?.[0]?.toUpperCase() || '?'}</span>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-2xl font-black text-slate-900 leading-tight">{profile.username}</p>
+                  {profile.full_name && <p className="text-lg font-bold text-slate-400">{profile.full_name}</p>}
+                  <div className="flex items-center gap-2 text-xs font-black text-slate-300 uppercase tracking-widest pt-2">
+                    <Calendar className="w-3 h-3" />
+                    Joined {new Date(profile.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+                  </div>
+                </div>
+              </div>
+
+              {editing && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="space-y-6 pt-6"
+                >
+                  <Separator className="bg-slate-100" />
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="username" className="text-[10px] font-black uppercase tracking-widest text-indigo-600 ml-1">Username</Label>
+                      <Input
+                        id="username"
+                        value={form.username}
+                        onChange={(e) => setForm(f => ({ ...f, username: e.target.value }))}
+                        className="h-12 bg-slate-50 border-none rounded-2xl px-5 font-bold focus-visible:ring-4 focus-visible:ring-indigo-500/10"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="full_name" className="text-[10px] font-black uppercase tracking-widest text-indigo-600 ml-1">Full Name</Label>
+                      <Input
+                        id="full_name"
+                        value={form.full_name}
+                        onChange={(e) => setForm(f => ({ ...f, full_name: e.target.value }))}
+                        className="h-12 bg-slate-50 border-none rounded-2xl px-5 font-bold focus-visible:ring-4 focus-visible:ring-indigo-500/10"
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Level Card */}
+        <motion.div variants={cardVars}>
+          <Card className="border-none shadow-xl bg-slate-900 rounded-[40px] overflow-hidden h-full">
+            <CardHeader className="p-8 pb-0">
+              <CardTitle className="text-xs font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                <Award className="w-4 h-4 text-indigo-400" /> Reputation
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-8 pt-6 flex flex-col justify-between h-[calc(100%-80px)]">
+              <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="text-5xl font-black text-white tracking-tighter">{profile.level}</div>
+                  <Badge variant="secondary" className={`${levelColor} border-none rounded-xl px-4 py-2 font-black uppercase tracking-widest text-[10px]`}>
+                    {levelName}
+                  </Badge>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    <span>{profile.xp_points} XP</span>
+                    <span>{xpForNextLevel} Next</span>
+                  </div>
+                  <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden shadow-inner">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${xpProgress}%` }}
+                      transition={{ duration: 1.5, ease: "easeOut" }}
+                      className="bg-indigo-500 h-full rounded-full shadow-[0_0_15px_rgba(99,102,241,0.5)]"
+                    />
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-500 italic">
+                    {xpForNextLevel - (profile.xp_points % 500)} XP to reach next milestone
+                  </p>
+                </div>
+              </div>
+              
+              <div className="mt-8 p-4 bg-white/5 rounded-[24px] border border-white/5">
+                <div className="flex items-center gap-3">
+                  <Sparkles className="w-5 h-5 text-indigo-400" />
+                  <p className="text-xs font-bold text-slate-300">You're in the top 15% of savers this month!</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Balances Card */}
+        <motion.div variants={cardVars}>
+          <Card className="border-none shadow-xl bg-white/60 backdrop-blur-xl ring-1 ring-slate-100 rounded-[40px] overflow-hidden h-full">
+            <CardHeader className="p-8 pb-0">
+              <CardTitle className="text-xs font-bold uppercase tracking-widest text-indigo-600 flex items-center gap-2">
+                <PiggyBank className="w-4 h-4" /> Capital Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-8 pt-6 space-y-6">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mb-1">Total Piggy Balance</p>
+                <p className="text-3xl font-black text-slate-900 tracking-tight">₹{profile.piggy_bank_balance.toFixed(2)}</p>
+              </div>
+              <Separator className="bg-slate-100" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mb-1">Spendable</p>
+                  <p className="text-sm font-black text-indigo-600">₹{profile.spendable_balance.toFixed(2)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mb-1">Lifetime</p>
+                  <p className="text-sm font-black text-slate-900">₹{profile.total_saved.toFixed(2)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Personality Card */}
+        <motion.div variants={cardVars} className="lg:col-span-2">
+          <Card className="border-none shadow-xl bg-white/60 backdrop-blur-xl ring-1 ring-slate-100 rounded-[40px] overflow-hidden">
+            <CardHeader className="p-10 pb-0">
+              <CardTitle className="text-2xl font-black flex items-center gap-3">
+                <TrendingUp className="w-6 h-6 text-indigo-600" />
+                Wealth Behavioral Profile
+              </CardTitle>
+              <CardDescription>Based on algorithmic transaction analysis</CardDescription>
+            </CardHeader>
+            <CardContent className="p-10 pt-6">
+              {profile.spending_personality && profile.spending_personality !== 'unknown' ? (
+                <div className="flex flex-col md:flex-row items-center gap-8">
+                  <div className="w-24 h-24 bg-indigo-600 rounded-[32px] flex items-center justify-center shadow-2xl shadow-indigo-600/30">
+                    <Zap className="w-10 h-10 text-white fill-current" />
+                  </div>
+                  <div className="space-y-2 text-center md:text-left">
+                    <p className="text-2xl font-black text-slate-900 capitalize tracking-tight">{profile.spending_personality}</p>
+                    <p className="text-slate-500 font-medium max-w-md">Your spending reflects a sophisticated pattern of financial consciousness. Keep recording interactions to refine your behavioral insights.</p>
+                  </div>
+                  <div className="ml-auto hidden md:block">
+                     <div className="w-16 h-16 border-4 border-indigo-100 border-t-indigo-600 rounded-full flex items-center justify-center">
+                        <span className="text-[10px] font-black text-indigo-600">88%</span>
+                     </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-8 flex flex-col items-center justify-center text-center space-y-4">
+                  <Activity className="w-12 h-12 text-slate-200" />
+                  <p className="text-slate-400 font-bold max-w-xs">Record at least 5 transactions to generate your behavioral profile.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    </motion.div>
   )
 }

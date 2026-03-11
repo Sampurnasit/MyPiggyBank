@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
-import { Award, Trophy, Star, Target, Zap } from 'lucide-react'
+import { Award, Trophy, Star, Target, Zap, Sparkles, ShieldCheck, ChevronRight } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 interface UserProfile {
   id: string
@@ -83,12 +84,30 @@ const DEFAULT_CHALLENGES = [
   },
 ]
 
+const containerVars = {
+  hidden: { opacity: 0 },
+  visible: { 
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+}
+
+const cardVars: any = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { type: "spring", damping: 25, stiffness: 120 }
+  }
+}
+
 export default function GamificationPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [badges, setBadges] = useState<Badge[]>([])
   const [weeklyChalls, setWeeklyChallenges] = useState<Challenge[]>([])
   const [monthlyChalls, setMonthlyChallenges] = useState<Challenge[]>([])
   const [loading, setLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
   const supabase = createClient()
 
   const currentLevel = LEVELS.find((l) => l.level === profile?.level) || LEVELS[0]
@@ -97,6 +116,7 @@ export default function GamificationPage() {
   const xpProgress = profile ? Math.min((profile.xp_points / xpNeeded) * 100, 100) : 0
 
   useEffect(() => {
+    setMounted(true)
     const loadData = async () => {
       try {
         const {
@@ -105,18 +125,14 @@ export default function GamificationPage() {
 
         if (!user) return
 
-        // Fetch profile
         const { data: profileData } = await supabase
           .from('user_profiles')
           .select('*')
           .eq('id', user.id)
           .single()
 
-        if (profileData) {
-          setProfile(profileData)
-        }
+        if (profileData) setProfile(profileData)
 
-        // Fetch badges
         const { data: badgesData } = await supabase
           .from('achievements_badges')
           .select('*')
@@ -124,7 +140,6 @@ export default function GamificationPage() {
 
         setBadges(badgesData || [])
 
-        // Fetch weekly challenges
         const now = new Date()
         const weekStart = new Date(now.setDate(now.getDate() - now.getDay()))
         const weekStartStr = weekStart.toISOString().split('T')[0]
@@ -137,7 +152,6 @@ export default function GamificationPage() {
 
         setWeeklyChallenges(weeklyChallengesData || [])
 
-        // Fetch monthly challenges
         const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
         const { data: monthlyChallengesData } = await supabase
@@ -148,15 +162,8 @@ export default function GamificationPage() {
 
         setMonthlyChallenges(monthlyChallengesData || [])
 
-        // Initialize default challenges if needed
-        if (!weeklyChallengesData || weeklyChallengesData.length === 0) {
-          initializeWeeklyChallenges(user.id, weekStartStr)
-        }
-        if (!monthlyChallengesData || monthlyChallengesData.length === 0) {
-          initializeMonthlyChallenges(user.id, monthYear)
-        }
       } catch (error) {
-        console.error('[v0] Error loading gamification data:', error)
+        console.error('Error loading gamification data:', error)
       } finally {
         setLoading(false)
       }
@@ -165,227 +172,228 @@ export default function GamificationPage() {
     loadData()
   }, [supabase])
 
-  const initializeWeeklyChallenges = async (userId: string, weekStart: string) => {
-    const now = new Date()
-    const weekStartDate = new Date(now)
-    weekStartDate.setDate(now.getDate() - now.getDay())
-
-    for (const challenge of DEFAULT_CHALLENGES.slice(0, 2)) {
-      await supabase.from('weekly_challenges').insert({
-        user_id: userId,
-        week_start: weekStart,
-        challenge_name: challenge.name,
-        description: challenge.description,
-        target_amount: challenge.target,
-        current_amount: 0,
-        xp_reward: 100,
-        is_completed: false,
-      })
-    }
-  }
-
-  const initializeMonthlyChallenges = async (userId: string, monthYear: string) => {
-    for (const challenge of DEFAULT_CHALLENGES.slice(2, 4)) {
-      await supabase.from('monthly_challenges').insert({
-        user_id: userId,
-        month_year: monthYear,
-        challenge_name: challenge.name,
-        description: challenge.description,
-        target_amount: challenge.target,
-        current_amount: 0,
-        xp_reward: 500,
-        is_completed: false,
-      })
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-muted-foreground">Loading gamification data...</p>
-      </div>
-    )
-  }
+  if (!mounted) return null
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">Progress & Gamification</h1>
-        <p className="text-muted-foreground mt-2">Track your savings journey and achievements</p>
+    <motion.div 
+      variants={containerVars}
+      initial="hidden"
+      animate="visible"
+      className="space-y-12 pb-20 max-w-5xl mx-auto"
+    >
+      <div className="px-2">
+        <h1 className="text-4xl font-black tracking-tight text-slate-900">Progress</h1>
+        <p className="text-slate-500 mt-1 font-medium italic">Your financial growth, visualized through achievements.</p>
       </div>
 
       {/* Level & XP Section */}
       {profile && (
-        <Card className="bg-gradient-to-r from-amber-50 to-orange-100">
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div>
-                <CardTitle className="text-2xl">
-                  Level {profile.level} {currentLevel?.emoji}
-                </CardTitle>
-                <CardDescription>{currentLevel?.name}</CardDescription>
+        <motion.div variants={cardVars}>
+          <Card className="border-none shadow-xl bg-slate-900 rounded-[40px] overflow-hidden text-white relative">
+            <CardHeader className="p-10 pb-0">
+              <div className="flex items-start justify-between relative z-10">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-indigo-400">
+                    <Sparkles className="w-4 h-4 fill-current" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Active Status</span>
+                  </div>
+                  <CardTitle className="text-4xl font-black tracking-tight">
+                    Level {profile.level} {currentLevel?.emoji}
+                  </CardTitle>
+                  <CardDescription className="text-slate-400 font-bold text-lg">{currentLevel?.name}</CardDescription>
+                </div>
+                <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center border border-white/10">
+                  <Trophy className="w-8 h-8 text-indigo-400" />
+                </div>
               </div>
-              <Trophy className="w-8 h-8 text-amber-600" />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <div className="flex justify-between text-sm mb-2">
-                <span>Experience Points</span>
-                <span className="font-medium">
-                  {profile.xp_points.toLocaleString()} / {xpNeeded.toLocaleString()} XP
-                </span>
+            </CardHeader>
+            <CardContent className="p-10 relative z-10 space-y-6">
+              <div className="space-y-3">
+                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  <span>Current XP: {profile.xp_points.toLocaleString()}</span>
+                  <span>Target: {xpNeeded.toLocaleString()}</span>
+                </div>
+                <div className="w-full bg-slate-800 rounded-full h-4 overflow-hidden border border-white/5">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${xpProgress}%` }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
+                    className="h-full bg-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.5)]" 
+                  />
+                </div>
               </div>
-              <Progress value={xpProgress} className="h-2" />
-            </div>
 
-            {profile.level < 10 && (
-              <p className="text-sm text-muted-foreground">
-                {Math.max(0, xpNeeded - profile.xp_points)} XP until next level
-              </p>
-            )}
-
-            {profile.level === 10 && (
-              <p className="text-sm font-semibold text-amber-700">
-                You've reached the maximum level! Congratulations, Money Master!
-              </p>
-            )}
-          </CardContent>
-        </Card>
+              <div className="flex items-center justify-between">
+                {profile.level < 10 ? (
+                  <p className="text-xs font-bold text-slate-400 italic">
+                    {Math.max(0, xpNeeded - profile.xp_points)} XP remaining until you unlock {LEVELS[profile.level]?.name}
+                  </p>
+                ) : (
+                  <p className="text-sm font-black text-indigo-400">
+                    Maximum Reputation Achieved! Congratulations, Money Master.
+                  </p>
+                )}
+                <div className="flex gap-1">
+                   {[1,2,3,4,5].map(i => (
+                     <Star key={i} className={`w-3 h-3 ${i <= (profile.level % 5 || 5) ? 'text-indigo-400 fill-current' : 'text-slate-800'}`} />
+                   ))}
+                </div>
+              </div>
+            </CardContent>
+            {/* Background elements */}
+            <div className="absolute right-0 top-0 w-1/2 h-full bg-gradient-to-l from-indigo-500/10 to-transparent pointer-events-none" />
+          </Card>
+        </motion.div>
       )}
 
       {/* Badges Section */}
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Badges & Achievements</h2>
-        <div className="grid gap-4 md:grid-cols-4">
-          {DEFAULT_BADGES.map((badge) => {
+      <div className="space-y-6">
+        <h2 className="text-2xl font-black tracking-tight text-slate-900 px-2 flex items-center gap-3">
+          <Award className="w-6 h-6 text-indigo-600" />
+          Achievement Gallery
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {DEFAULT_BADGES.map((badge, idx) => {
             const earned = badges.some((b) => b.badge_name === badge.name)
             return (
-              <Card key={badge.name} className={earned ? 'bg-amber-50' : 'opacity-50'}>
-                <CardContent className="pt-6 text-center space-y-2">
-                  <div className={`text-4xl ${earned ? '' : 'grayscale'}`}>{badge.emoji}</div>
-                  <div>
-                    <p className="font-semibold">{badge.name}</p>
-                    <p className="text-xs text-muted-foreground">{badge.description}</p>
-                  </div>
-                  {earned && (
-                    <p className="text-xs text-green-600 font-medium">✓ Earned</p>
-                  )}
-                </CardContent>
-              </Card>
+              <motion.div key={badge.name} variants={cardVars}>
+                <Card className={`border-none shadow-xl transition-all duration-300 rounded-[32px] overflow-hidden ${earned ? 'bg-white/80 ring-1 ring-indigo-100' : 'bg-slate-50 opacity-40 grayscale blur-[0.5px]'}`}>
+                  <CardContent className="p-8 text-center space-y-4">
+                    <div className="w-20 h-20 mx-auto rounded-3xl bg-slate-100 flex items-center justify-center text-5xl shadow-inner group-hover:scale-110 transition-transform">
+                      {badge.emoji}
+                    </div>
+                    <div>
+                      <p className="font-black text-slate-900">{badge.name}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-1">{badge.description}</p>
+                    </div>
+                    {earned ? (
+                      <div className="flex items-center justify-center gap-1 text-[10px] font-black text-indigo-600 uppercase bg-indigo-50 rounded-full py-1">
+                        <ShieldCheck className="w-3 h-3" /> Earned
+                      </div>
+                    ) : (
+                      <div className="text-[10px] font-black text-slate-300 uppercase py-1">Locked</div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
             )
           })}
         </div>
       </div>
 
       {/* Weekly Challenges */}
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Weekly Challenges</h2>
-        <div className="grid gap-4 md:grid-cols-2">
+      <div className="space-y-6">
+        <h2 className="text-2xl font-black tracking-tight text-slate-900 px-2 flex items-center gap-3">
+          <Zap className="w-6 h-6 text-indigo-600" />
+          Weekly Sprints
+        </h2>
+        <div className="grid gap-6 md:grid-cols-2">
           {weeklyChalls.length > 0 ? (
             weeklyChalls.map((challenge) => (
-              <Card key={challenge.id} className={challenge.is_completed ? 'bg-green-50' : ''}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">{challenge.challenge_name}</CardTitle>
-                      <CardDescription>{challenge.description}</CardDescription>
+              <motion.div key={challenge.id} variants={cardVars}>
+                <Card className={`border-none shadow-xl rounded-[32px] overflow-hidden transition-all ${challenge.is_completed ? 'bg-indigo-600 text-white' : 'bg-white/60 backdrop-blur-md ring-1 ring-slate-100'}`}>
+                  <CardHeader className="p-8 pb-0">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <CardTitle className="text-xl font-black">{challenge.challenge_name}</CardTitle>
+                        <CardDescription className={challenge.is_completed ? 'text-indigo-200' : 'text-slate-500'}>{challenge.description}</CardDescription>
+                      </div>
+                      <div className={`p-3 rounded-2xl ${challenge.is_completed ? 'bg-white/20' : 'bg-indigo-50'}`}>
+                        <Zap className={`w-5 h-5 ${challenge.is_completed ? 'text-white' : 'text-indigo-600'}`} />
+                      </div>
                     </div>
-                    <Zap className="w-5 h-5 text-amber-500" />
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span>Progress</span>
-                      <span className="font-medium">
-                        {challenge.current_amount} / {challenge.target_amount}
-                      </span>
+                  </CardHeader>
+                  <CardContent className="p-8 pt-6 space-y-6">
+                    <div className="space-y-3">
+                      <div className={`flex justify-between text-[10px] font-black uppercase tracking-widest ${challenge.is_completed ? 'text-indigo-200' : 'text-slate-400'}`}>
+                        <span>Velocity: {challenge.current_amount}</span>
+                        <span>Goal: {challenge.target_amount}</span>
+                      </div>
+                      <div className={`w-full h-2 rounded-full overflow-hidden ${challenge.is_completed ? 'bg-white/20' : 'bg-slate-100'}`}>
+                        <div
+                          className={`h-full rounded-full ${challenge.is_completed ? 'bg-white' : 'bg-indigo-600'}`}
+                          style={{ width: `${(challenge.current_amount / challenge.target_amount) * 100}%` }}
+                        />
+                      </div>
                     </div>
-                    <Progress
-                      value={(challenge.current_amount / challenge.target_amount) * 100}
-                      className="h-2"
-                    />
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">
-                      Reward: {challenge.xp_reward} XP
-                    </span>
-                    {challenge.is_completed && (
-                      <span className="text-xs font-semibold text-green-600">✓ Complete</span>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                    <div className="flex justify-between items-center pt-2">
+                       <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${challenge.is_completed ? 'text-white' : 'text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full'}`}>
+                         Reward: {challenge.xp_reward} XP
+                       </div>
+                       {challenge.is_completed && (
+                         <span className="text-xs font-black uppercase tracking-widest flex items-center gap-1">
+                           <ShieldCheck className="w-4 h-4" /> Finalized
+                         </span>
+                       )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
             ))
           ) : (
-            <p className="text-muted-foreground col-span-2">No weekly challenges yet</p>
+            <div className="col-span-2 py-10 text-center bg-slate-50 rounded-[40px] border border-dashed border-slate-200">
+               <p className="text-slate-400 font-bold">No active weekly sprints recorded.</p>
+            </div>
           )}
         </div>
       </div>
 
       {/* Monthly Challenges */}
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Monthly Challenges</h2>
-        <div className="grid gap-4 md:grid-cols-2">
+      <div className="space-y-6">
+        <h2 className="text-2xl font-black tracking-tight text-slate-900 px-2 flex items-center gap-3">
+          <Target className="w-6 h-6 text-indigo-600" />
+          Endurance Quests
+        </h2>
+        <div className="grid gap-6 md:grid-cols-2">
           {monthlyChalls.length > 0 ? (
             monthlyChalls.map((challenge) => (
-              <Card key={challenge.id} className={challenge.is_completed ? 'bg-green-50' : ''}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">{challenge.challenge_name}</CardTitle>
-                      <CardDescription>{challenge.description}</CardDescription>
+              <motion.div key={challenge.id} variants={cardVars}>
+                <Card className={`border-none shadow-xl rounded-[32px] overflow-hidden transition-all ${challenge.is_completed ? 'bg-slate-900 text-white' : 'bg-white/60 backdrop-blur-md ring-1 ring-slate-100'}`}>
+                  <CardHeader className="p-8 pb-0">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <CardTitle className="text-xl font-black">{challenge.challenge_name}</CardTitle>
+                        <CardDescription className={challenge.is_completed ? 'text-slate-400' : 'text-slate-500'}>{challenge.description}</CardDescription>
+                      </div>
+                      <div className={`p-3 rounded-2xl ${challenge.is_completed ? 'bg-white/10' : 'bg-indigo-50'}`}>
+                        <Target className={`w-5 h-5 ${challenge.is_completed ? 'text-indigo-400' : 'text-indigo-600'}`} />
+                      </div>
                     </div>
-                    <Target className="w-5 h-5 text-blue-500" />
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span>Progress</span>
-                      <span className="font-medium">
-                        {challenge.current_amount} / {challenge.target_amount}
-                      </span>
+                  </CardHeader>
+                  <CardContent className="p-8 pt-6 space-y-6">
+                    <div className="space-y-3">
+                      <div className={`flex justify-between text-[10px] font-black uppercase tracking-widest ${challenge.is_completed ? 'text-slate-500' : 'text-slate-400'}`}>
+                        <span>Progress: {challenge.current_amount}</span>
+                        <span>Milestone: {challenge.target_amount}</span>
+                      </div>
+                      <div className={`w-full h-2 rounded-full overflow-hidden ${challenge.is_completed ? 'bg-slate-800' : 'bg-slate-100'}`}>
+                        <div
+                          className="h-full bg-indigo-500 rounded-full"
+                          style={{ width: `${(challenge.current_amount / challenge.target_amount) * 100}%` }}
+                        />
+                      </div>
                     </div>
-                    <Progress
-                      value={(challenge.current_amount / challenge.target_amount) * 100}
-                      className="h-2"
-                    />
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">
-                      Reward: {challenge.xp_reward} XP
-                    </span>
-                    {challenge.is_completed && (
-                      <span className="text-xs font-semibold text-green-600">✓ Complete</span>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                    <div className="flex justify-between items-center pt-2">
+                       <div className="text-[10px] font-black uppercase tracking-widest text-indigo-400">
+                         Reward: {challenge.xp_reward} XP
+                       </div>
+                       {challenge.is_completed && (
+                         <span className="text-xs font-black uppercase tracking-widest text-white flex items-center gap-1">
+                           <Trophy className="w-4 h-4 text-indigo-400" /> Legacy Secured
+                         </span>
+                       )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
             ))
           ) : (
-            <p className="text-muted-foreground col-span-2">No monthly challenges yet</p>
+            <div className="col-span-2 py-10 text-center bg-slate-50 rounded-[40px] border border-dashed border-slate-200">
+               <p className="text-slate-400 font-bold">No active quests found in the vault.</p>
+            </div>
           )}
         </div>
       </div>
-
-      {/* Spending Personality */}
-      {profile && profile.spending_personality && profile.spending_personality !== 'unknown' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Spending Personality</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-lg font-semibold capitalize mb-2">{profile.spending_personality}</p>
-            <p className="text-muted-foreground">
-              Based on your spending patterns, you're a {profile.spending_personality}. This means
-              your spending habits reflect this personality type. Keep tracking to discover more about
-              your financial behavior!
-            </p>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+    </motion.div>
   )
 }

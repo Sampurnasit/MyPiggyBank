@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Script from 'next/script'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,6 +11,23 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { 
+  ChevronLeft, 
+  IndianRupee, 
+  Tag, 
+  Pizza, 
+  Car, 
+  ShoppingBag, 
+  Zap, 
+  Coffee, 
+  MoreHorizontal,
+  ArrowRight,
+  Sparkles,
+  CreditCard,
+  ShieldCheck,
+  History
+} from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 declare global {
   interface Window {
@@ -18,19 +36,12 @@ declare global {
 }
 
 const CATEGORIES = [
-  'Food & Dining',
-  'Shopping',
-  'Transportation',
-  'Entertainment',
-  'Health & Fitness',
-  'Utilities',
-  'Subscriptions',
-  'Groceries',
-  'Coffee',
-  'Movies',
-  'Clothes',
-  'Books',
-  'Other',
+  { label: 'Food & Dining', value: 'Food & Dining', icon: Pizza, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+  { label: 'Transportation', value: 'Transportation', icon: Car, color: 'text-violet-500', bg: 'bg-violet-50' },
+  { label: 'Shopping', value: 'Shopping', icon: ShoppingBag, color: 'text-purple-500', bg: 'bg-purple-50' },
+  { label: 'Utilities', value: 'Utilities', icon: Zap, color: 'text-fuchsia-500', bg: 'bg-fuchsia-50' },
+  { label: 'Entertainment', value: 'Entertainment', icon: Coffee, color: 'text-pink-500', bg: 'bg-pink-50' },
+  { label: 'Other', value: 'Other', icon: MoreHorizontal, color: 'text-slate-500', bg: 'bg-slate-50' },
 ]
 
 const ROUNDUP_OPTIONS = [
@@ -51,7 +62,7 @@ export default function AddTransactionPage() {
     amount: '',
     category: 'Other',
     description: '',
-    roundupOption: 'no',
+    roundupOption: 'nearest_10',
   })
 
   useEffect(() => {
@@ -77,7 +88,6 @@ export default function AddTransactionPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not logged in')
 
-    // Just log the transaction with roundup = 0
     const { error: txError } = await supabase.from('transactions').insert({
       user_id: user.id,
       amount,
@@ -88,7 +98,6 @@ export default function AddTransactionPage() {
     })
     if (txError) throw txError
 
-    // Update monthly stats
     const now = new Date()
     const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
@@ -121,7 +130,6 @@ export default function AddTransactionPage() {
   }
 
   const openRazorpayForRoundup = async (amount: number, roundup: number) => {
-    // Create Razorpay order for the roundup amount
     const res = await fetch('/api/razorpay/create-order', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -134,14 +142,13 @@ export default function AddTransactionPage() {
     return new Promise<void>((resolve, reject) => {
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: Math.round(roundup * 100), // paise
+        amount: Math.round(roundup * 100),
         currency: 'INR',
         name: 'RoundUp Savings',
         description: `Roundup ₹${roundup.toFixed(2)} → Piggy Bank`,
         order_id: orderId,
         handler: async (response: any) => {
           try {
-            // Verify payment and log transaction + update piggy bank on server
             const verifyRes = await fetch('/api/razorpay/verify-roundup', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -168,11 +175,11 @@ export default function AddTransactionPage() {
         },
         modal: {
           ondismiss: () => {
-            reject(new Error('Payment cancelled — expense not logged'))
+            reject(new Error('Payment cancelled — transaction not recorded'))
           },
         },
         prefill: { email: userEmail },
-        theme: { color: '#ec4899' },
+        theme: { color: '#6366f1' }, // Indigo 500
       }
 
       const rzp = new window.Razorpay(options)
@@ -197,18 +204,16 @@ export default function AddTransactionPage() {
 
       if (roundup > 0) {
         if (!razorpayReady) {
-          setError('Payment gateway is loading, please try again')
+          setError('Payment gateway is still loading, please wait a moment...')
           setLoading(false)
           return
         }
-        // Open Razorpay to charge the roundup, which also logs the transaction on success
         await openRazorpayForRoundup(amount, roundup)
       } else {
-        // No roundup — just log the expense
         await logExpenseWithoutRoundup(amount)
       }
 
-      router.push('/dashboard')
+      router.push('/dashboard/transactions')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -217,109 +222,181 @@ export default function AddTransactionPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-2xl mx-auto space-y-8 pb-20">
       <Script
         src="https://checkout.razorpay.com/v1/checkout.js"
         onLoad={() => setRazorpayReady(true)}
       />
 
-      <div>
-        <h1 className="text-3xl font-bold">Add Expense</h1>
-        <p className="text-muted-foreground mt-2">Track your spending and save with roundups</p>
+      <Link href="/dashboard/transactions" className="inline-flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold transition-all group">
+        <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+        Back to Ledger
+      </Link>
+
+      <div className="px-2">
+        <h1 className="text-4xl font-black tracking-tight text-slate-900">Add Expense</h1>
+        <p className="text-slate-500 mt-1 font-medium">Record your spending and watch your roundups grow.</p>
       </div>
 
-      <div className="max-w-md">
-        <Card>
-          <CardHeader>
-            <CardTitle>New Transaction</CardTitle>
-            <CardDescription>Log your expense and set roundup preference</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <Card className="border-none shadow-2xl bg-white/80 backdrop-blur-xl ring-1 ring-indigo-500/10 rounded-[40px] overflow-hidden">
+          <CardContent className="p-8 md:p-12">
+            <form onSubmit={handleSubmit} className="space-y-10">
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
+                <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-2xl text-sm font-bold flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
+                  <ShieldCheck className="w-5 h-5 text-red-400" />
                   {error}
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount (₹)</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  required
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select value={formData.category} onValueChange={(val) => setFormData({ ...formData, category: val })}>
-                  <SelectTrigger id="category">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Description (optional)</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Add details about this expense..."
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="resize-none"
-                  rows={3}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="roundup">Roundup Option</Label>
-                <Select value={formData.roundupOption} onValueChange={(val) => setFormData({ ...formData, roundupOption: val })}>
-                  <SelectTrigger id="roundup">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ROUNDUP_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {roundupAmount > 0 && (
-                <div className="bg-green-50 border border-green-200 rounded p-3 text-sm">
-                  <p className="font-medium text-green-900">Roundup: ₹{roundupAmount.toFixed(2)}</p>
-                  <p className="text-green-700 text-xs mt-1">
-                    You&apos;ll pay ₹{roundupAmount.toFixed(2)} via Razorpay — it goes straight to your piggy bank 🐷
-                  </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Amount Input with Floating Label */}
+                <div className="relative group md:col-span-2">
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    required
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    className="h-20 bg-slate-50 border-none rounded-[32px] px-8 pt-8 pb-2 text-3xl font-black focus-visible:ring-4 focus-visible:ring-indigo-500/10 peer placeholder-transparent"
+                    placeholder="0.00"
+                  />
+                  <label 
+                    htmlFor="amount"
+                    className="absolute left-8 top-3 text-[12px] font-bold uppercase tracking-widest text-indigo-600 transition-all peer-placeholder-shown:text-xl peer-placeholder-shown:top-6 peer-placeholder-shown:text-slate-400 peer-focus:top-3 peer-focus:text-[12px] peer-focus:text-indigo-600 pointer-events-none"
+                  >
+                    Expenditure Amount (₹)
+                  </label>
+                  <div className="absolute right-8 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <IndianRupee className="w-8 h-8 text-slate-200 group-focus-within:text-indigo-100 transition-colors" />
+                  </div>
                 </div>
-              )}
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading
-                  ? 'Processing...'
-                  : roundupAmount > 0
-                    ? `Log Expense & Pay ₹${roundupAmount.toFixed(2)} Roundup`
-                    : 'Log Expense'}
-              </Button>
+                {/* Category Select */}
+                <div className="relative">
+                  <Select value={formData.category} onValueChange={(val) => setFormData({ ...formData, category: val })}>
+                    <SelectTrigger className="h-16 bg-slate-50 border-none rounded-2xl px-6 pt-7 pb-2 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-[28px] border-none shadow-2xl p-2">
+                      {CATEGORIES.map((cat) => (
+                        <SelectItem key={cat.value} value={cat.value} className="rounded-2xl focus:bg-indigo-50 py-3 mb-1">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 ${cat.bg} rounded-xl flex items-center justify-center`}>
+                              <cat.icon className={`w-4 h-4 ${cat.color}`} />
+                            </div>
+                            <span className="font-bold text-slate-700">{cat.label}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <label className="absolute left-6 top-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 pointer-events-none">
+                    Category
+                  </label>
+                </div>
+
+                {/* Roundup Option */}
+                <div className="relative">
+                  <Select value={formData.roundupOption} onValueChange={(val) => setFormData({ ...formData, roundupOption: val })}>
+                    <SelectTrigger className="h-16 bg-slate-50 border-none rounded-2xl px-6 pt-7 pb-2 text-sm font-bold focus:ring-4 focus:ring-indigo-500/10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-[28px] border-none shadow-2xl p-2">
+                      {ROUNDUP_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value} className="rounded-2xl focus:bg-indigo-50 py-3 mb-1">
+                           <span className="font-bold text-slate-700">{opt.label}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <label className="absolute left-6 top-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 pointer-events-none">
+                    Roundup Preference
+                  </label>
+                </div>
+
+                {/* Description Input */}
+                <div className="relative group md:col-span-2">
+                  <Input
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="h-16 bg-slate-50 border-none rounded-2xl px-6 pt-7 pb-2 text-base font-bold focus-visible:ring-4 focus-visible:ring-indigo-500/10 peer placeholder-transparent"
+                    placeholder="e.g. Starbucks"
+                  />
+                  <label 
+                    htmlFor="description"
+                    className="absolute left-6 top-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 transition-all peer-placeholder-shown:text-sm peer-placeholder-shown:top-6 peer-placeholder-shown:text-slate-400 peer-focus:top-2 peer-focus:text-[10px] peer-focus:text-indigo-600 pointer-events-none"
+                  >
+                    Merchant / Note (Optional)
+                  </label>
+                </div>
+              </div>
+
+              {/* Savings Preview */}
+              <AnimatePresence>
+                {roundupAmount > 0 && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, height: 'auto', scale: 1 }}
+                    exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                    className="bg-indigo-50/50 border border-indigo-500/10 rounded-[32px] p-6 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                        <Sparkles className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-indigo-900">Roundup Value</h4>
+                        <p className="text-indigo-700/70 text-sm font-medium">Auto-investing via Razorpay</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-black text-indigo-600">₹{roundupAmount.toFixed(2)}</p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="flex justify-end pt-4">
+                <motion.div whileTap={{ scale: 0.98 }} className="w-full">
+                  <Button 
+                    type="submit" 
+                    disabled={loading || !formData.amount}
+                    className="h-20 w-full rounded-[32px] bg-slate-900 hover:bg-black text-white text-xl font-bold transition-all shadow-xl hover:shadow-2xl disabled:opacity-30 group py-8"
+                  >
+                    {loading ? (
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                        Processing...
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center gap-4">
+                        {roundupAmount > 0 ? (
+                          <>
+                            <CreditCard className="w-6 h-6" />
+                            Pay & Add Expense
+                          </>
+                        ) : (
+                          <>
+                            <History className="w-6 h-6" />
+                            Log Transaction
+                          </>
+                        )}
+                        <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
+                      </div>
+                    )}
+                  </Button>
+                </motion.div>
+              </div>
             </form>
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
     </div>
   )
 }
