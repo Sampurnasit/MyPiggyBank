@@ -6,7 +6,8 @@ export type Tables = {
       username: string
       full_name: string | null
       avatar_url: string | null
-      current_balance: number
+      spendable_balance: number
+      piggy_bank_balance: number
       total_saved: number
       xp_points: number
       level: number
@@ -19,7 +20,8 @@ export type Tables = {
       username: string
       full_name?: string | null
       avatar_url?: string | null
-      current_balance?: number
+      spendable_balance?: number
+      piggy_bank_balance?: number
       total_saved?: number
       xp_points?: number
       level?: number
@@ -29,7 +31,8 @@ export type Tables = {
       username?: string
       full_name?: string | null
       avatar_url?: string | null
-      current_balance?: number
+      spendable_balance?: number
+      piggy_bank_balance?: number
       total_saved?: number
       xp_points?: number
       level?: number

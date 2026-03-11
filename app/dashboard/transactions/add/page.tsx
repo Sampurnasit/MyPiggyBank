@@ -82,6 +82,21 @@ export default function AddTransactionPage() {
       }
 
       const roundup = calculateRoundup(amount, formData.roundupOption)
+      const totalDeduction = amount + roundup
+
+      // Check spendable balance
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('spendable_balance, piggy_bank_balance, total_saved')
+        .eq('id', user.id)
+        .single()
+
+      const spendable = profile?.spendable_balance || 0
+      if (spendable < totalDeduction) {
+        setError(`Insufficient balance. You have ₹${spendable.toFixed(2)} but need ₹${totalDeduction.toFixed(2)} (₹${amount.toFixed(2)} + ₹${roundup.toFixed(2)} roundup). Add money to your wallet first.`)
+        setLoading(false)
+        return
+      }
 
       // Add transaction
       const { error: txError } = await supabase.from('transactions').insert({
@@ -95,20 +110,17 @@ export default function AddTransactionPage() {
 
       if (txError) throw txError
 
-      // Update user balance
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('current_balance')
-        .eq('id', user.id)
-        .single()
-
-      const newBalance = (profile?.current_balance || 0) + roundup
+      // Update balances: deduct expense + roundup from spendable, add roundup to piggy bank
+      const newSpendable = spendable - totalDeduction
+      const newPiggy = (profile?.piggy_bank_balance || 0) + roundup
+      const newTotalSaved = (profile?.total_saved || 0) + roundup
 
       const { error: updateError } = await supabase
         .from('user_profiles')
         .update({
-          current_balance: newBalance,
-          total_saved: (profile ? newBalance : roundup),
+          spendable_balance: newSpendable,
+          piggy_bank_balance: newPiggy,
+          total_saved: newTotalSaved,
         })
         .eq('id', user.id)
 

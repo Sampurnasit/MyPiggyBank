@@ -5,13 +5,14 @@ import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { TrendingUp, Plus, Target } from 'lucide-react'
+import { TrendingUp, Plus, Target, Wallet, ArrowDownToLine } from 'lucide-react'
 import PiggyBank from '@/components/piggy-bank'
 
 interface UserProfile {
   id: string
   username: string
-  current_balance: number
+  spendable_balance: number
+  piggy_bank_balance: number
   total_saved: number
   level: number
   xp_points: number
@@ -111,23 +112,44 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Piggy Bank Section */}
+      {/* Wallet & Piggy Bank Section */}
       <div className="grid gap-6 md:grid-cols-3">
-        <Card className="md:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Current Balance
+        <Card className="border-blue-200 bg-blue-50/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Wallet className="w-4 h-4" /> Spendable Balance
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <PiggyBank balance={profile.current_balance} />
+            <p className="text-3xl font-bold text-blue-700">₹{profile.spendable_balance.toFixed(2)}</p>
+            <Link href="/dashboard/wallet/add">
+              <Button size="sm" variant="outline" className="mt-3 w-full gap-1">
+                <Plus className="w-3 h-3" /> Add Money
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="border-pink-200 bg-pink-50/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              Piggy Bank Savings
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <PiggyBank balance={profile.piggy_bank_balance} />
               <div className="text-center">
-                <p className="text-3xl font-bold">₹{profile.current_balance.toFixed(2)}</p>
+                <p className="text-3xl font-bold text-pink-700">₹{profile.piggy_bank_balance.toFixed(2)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Total Saved: ₹{profile.total_saved.toFixed(2)}
+                  Lifetime saved: ₹{profile.total_saved.toFixed(2)}
                 </p>
               </div>
+              <Link href="/dashboard/wallet/withdraw">
+                <Button size="sm" variant="outline" className="w-full gap-1">
+                  <ArrowDownToLine className="w-3 h-3" /> Withdraw
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
@@ -162,9 +184,15 @@ export default function DashboardPage() {
       </div>
 
       {/* Action Buttons */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Link href="/dashboard/transactions/add">
+      <div className="grid gap-4 md:grid-cols-4">
+        <Link href="/dashboard/wallet/add">
           <Button className="w-full h-12 text-base" size="lg">
+            <Wallet className="w-5 h-5 mr-2" />
+            Add Money
+          </Button>
+        </Link>
+        <Link href="/dashboard/transactions/add">
+          <Button variant="outline" className="w-full h-12 text-base" size="lg">
             <Plus className="w-5 h-5 mr-2" />
             Add Expense
           </Button>

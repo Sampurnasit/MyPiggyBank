@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { PiggyBank, LogOut, Home, TrendingUp, Zap, Lightbulb, User } from 'lucide-react'
+import { PiggyBank, LogOut, Home, TrendingUp, Zap, Lightbulb, User, Wallet } from 'lucide-react'
 
 export default function DashboardNav({ user }: { user: User }) {
   const router = useRouter()
@@ -28,6 +28,10 @@ export default function DashboardNav({ user }: { user: User }) {
           <Link href="/dashboard" className="flex items-center gap-1 text-sm hover:text-foreground/80">
             <Home className="w-4 h-4" />
             Dashboard
+          </Link>
+          <Link href="/dashboard/wallet/add" className="flex items-center gap-1 text-sm hover:text-foreground/80">
+            <Wallet className="w-4 h-4" />
+            Wallet
           </Link>
           <Link href="/dashboard/transactions" className="flex items-center gap-1 text-sm hover:text-foreground/80">
             <TrendingUp className="w-4 h-4" />

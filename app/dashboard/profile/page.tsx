@@ -15,7 +15,8 @@ interface UserProfile {
   username: string
   full_name: string | null
   avatar_url: string | null
-  current_balance: number
+  spendable_balance: number
+  piggy_bank_balance: number
   total_saved: number
   xp_points: number
   level: number
@@ -189,8 +190,8 @@ export default function ProfilePage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-primary">₹{profile.current_balance.toFixed(2)}</p>
-            <p className="text-xs text-muted-foreground mt-1">Total ever saved: ₹{profile.total_saved.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-primary">₹{profile.piggy_bank_balance.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Spendable: ₹{profile.spendable_balance.toFixed(2)} | Total ever saved: ₹{profile.total_saved.toFixed(2)}</p>
           </CardContent>
         </Card>
 
